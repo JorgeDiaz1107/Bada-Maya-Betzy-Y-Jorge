@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viaje Mérida 2026 - Itinerario + Estado de Cuenta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
+        body { font-family: 'Montserrat', sans-serif; background-color: #f1f5f9; }
+        
+        .hero-section {
+            background: linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url('Mapa.PNG');
+            background-color: #f0f4f8;
+            background-size: contain; 
+            background-repeat: no-repeat;
+            background-position: center;
+            min-height: 700px;
+        }
+        
+        .img-card { width: 100%; height: 200px; object-fit: cover; border-radius: 12px; transition: transform 0.3s; background-color: #cbd5e1; }
+        .img-card-small { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; transition: transform 0.3s; background-color: #cbd5e1; }
+        .img-card:hover, .img-card-small:hover { transform: scale(1.03); }
+        
+        .day-container { background: white; border-radius: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 2rem; overflow: hidden; transition: all 0.3s ease; cursor: pointer; }
+        .day-header { padding: 1.25rem; color: white; font-style: italic; font-weight: bold; font-size: 1.25rem; position: relative; }
+        .day-header::after {
+            content: "▼";
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1rem;
+            transition: transform 0.3s;
+        }
+        .day-container.active .day-header::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        .day-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+        .day-container.active .day-details {
+            max-height: 800px;
+            transition: max-height 0.6s ease-in-out;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+        .info-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid;
+        }
+        .info-card h4 { font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .info-card p { font-size: 0.85rem; color: #475569; line-height: 1.4; }
+        .cost-badge { background: #22c55e20; color: #166534; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; margin: 0.15rem 0; }
+        
+        .album-card {
+            background: white;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .album-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        .album-card.locked { opacity: 0.85; filter: blur(1px); pointer-events: none; position: relative; }
+        .album-card.locked::after { content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.2); border-radius: 20px; z-index: 2; pointer-events: none; }
+        .lock-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: white; padding: 8px 16px; border-radius: 40px; font-size: 0.75rem; font-weight: bold; z-index: 3; white-space: nowrap; font-family: 'Montserrat', sans-serif; pointer-events: none; backdrop-filter: blur(4px); text-align: center; }
+        .drive-button { transition: all 0.2s ease; display: block; text-align: center; }
+        .album-card:not(.locked) .drive-button:hover { transform: scale(1.02); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .preview-badge { position: fixed; bottom: 20px; right: 20px; background: #f97316; color: white; padding: 6px 12px; border-radius: 40px; font-size: 0.7rem; font-weight: bold; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); cursor: default; }
+        
+        /* Estilos para estado de cuenta */
+        .login-card, .dashboard-card { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .tabla-estado { overflow-x: auto; border-radius: 20px; }
+        .tabla-estado table { width: 100%; border-collapse: collapse; }
+        .tabla-estado th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 16px; font-weight: 600; font-size: 0.85rem; }
+        .tabla-estado td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+        .abono-item { background: #f1f5f9; border-radius: 12px; padding: 8px 12px; margin-bottom: 8px; font-size: 0.8rem; }
+        .total-card { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 20px; padding: 20px; color: white; }
+        .pending-card { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 20px; padding: 20px; color: white; }
+        .overpaid-card { background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 20px; padding: 20px; color: white; }
+        .logout-btn { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); border: none; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 600; cursor: pointer; transition: all 0.3s; z-index: 50; }
+        .logout-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.05); }
+        .input-abono { border: 2px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 0.85rem; width: 100%; }
+        .input-abono:focus { outline: none; border-color: #667eea; }
+        .btn-abono { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 6px 12px; border-radius: 40px; font-size: 0.7rem; font-weight: bold; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-abono:hover { transform: scale(1.02); }
+        .badge-30 { background: #3b82f6; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-left: 8px; }
+        .badge-priority { background: #8b5cf6; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-left: 8px; }
+        
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; border-radius: 24px; max-width: 500px; width: 90%; padding: 24px; }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- Botón de logout (oculto inicialmente) -->
+    <button class="logout-btn hidden" onclick="cerrarSesionEstadoCuenta()">🚪 Cerrar Sesión</button>
+
+    <!-- HERO SECTION -->
+    <header class="hero-section text-white py-12 px-4 text-center flex flex-col justify-center items-center"></header>
+
+    <!-- ITINERARIO -->
+    <main class="max-w-5xl mx-auto mt-10 px-4">
+        <!-- DÍA 1 - MARTES 9: UXMAL + IZAMAL -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-indigo-600">🌙 DÍA 1 – MAR 9 | UXMAL + IZAMAL</div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <img src="Uxmal.jfif" alt="Uxmal" class="img-card-small">
+                    <img src="Izamal.jfif" alt="Izamal" class="img-card-small">
+                </div>
+                <div class="bg-indigo-50 p-4 rounded-xl"><p class="text-gray-800 italic font-medium">Llegada a Mérida y salida directa a la zona arqueológica de Uxmal, joya de la arquitectura Puuc. Por la tarde, el Pueblo Mágico de Izamal con su convento y calles amarillas, terminando con la vista iluminada del atrio.</p></div>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #6366f1"><h4>⏰ HORARIOS</h4><p>1:00pm Llegada aeropuerto<br>2:00-4:30pm Uxmal<br>5:45-7:30pm Izamal<br>9:30pm Check-in Mérida</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Uxmal: $250</span><br><span class="cost-badge">Pirámide Izamal: $75</span><br><span class="cost-badge">Cena Izamal: $150–300</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>✨ TIPS</h4><p>Llevar repelente, agua y ropa cómoda. El atardecer en Izamal es mágico.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÍA 2 - MIÉRCOLES 10 -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-pink-500">🌊 DÍA 2 – MIÉ 10 | MÉRIDA EXPRESS + COLORADAS + RÍO LAGARTOS</div>
+            <div class="p-6">
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <img src="Merida.jfif" alt="Mérida" class="img-card-small">
+                    <img src="Las coloradas.jfif" alt="Las Coloradas" class="img-card-small">
+                    <img src="Rio lagartos.jfif" alt="Río Lagartos" class="img-card-small">
+                </div>
+                <div class="bg-pink-50 p-4 rounded-xl"><p class="text-gray-800 italic font-medium">Aventura en el norte: Lancha entre manglares, avistamiento de flamencos y el espectacular tono rosado de las salinas.</p></div>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #ec489a"><h4>⏰ HORARIOS</h4><p>8:00am Centro exprés<br>9:30am Salida a Río Lagartos<br>1:00-4:00pm Tour Completo<br>6:00pm Regreso (9:30pm llegada)</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Tour lancha: $300</span><br><span class="badge-30">💡 Solo pide 30% anticipo</span></p><span class="cost-badge">Comida: $250–400</span><br><span class="cost-badge">Playa Cancunito: gratis</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>📸 TIPS</h4><p>Protector solar + repelente. Lleva traje de baño y no olvides tu cámara. Si quieres el tour de lancha reserva con anticipación.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÍA 3 - JUEVES 11 -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-orange-500">🔥 DÍA 3 – JUE 11 | CEREMONIA + CHICHÉN + SUYTUN + PASEO MONTEJO</div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <img src="Ceremonia Maya.jfif" alt="Ceremonia" class="img-card h-48">
+                    <img src="Chichen Itza.jfif" alt="Chichén Itzá" class="img-card h-48">
+                    <img src="Suytun.jfif" alt="Cenote Suytun" class="img-card h-48">
+                    <img src="Paseo de montejo.jfif" alt="Paseo Montejo" class="img-card h-48">
+                </div>
+                <p class="text-gray-700 border-l-4 border-orange-500 pl-4 py-2">Día de cultura pura. Desde la purificación espiritual en el cenote Wolpoch hasta la majestuosidad de Chichén Itzá, terminando con la foto de tus sueños en Suytun y una cena elegante en Paseo de Montejo.</p>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #f97316"><h4>⏰ HORARIOS</h4><p>8:30am Salida a Homún<br>10am Ceremonia Cenote Wolpoch<br>1:30-4pm Chichén Itzá<br>4:30pm Suytun<br>8:30pm Paseo Montejo</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Chichén: $105</span><br><span class="cost-badge">Suytun: $150–250</span><br><span class="cost-badge">Comida rápida: $150–250</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>✨ TIPS</h4><p>Llegar temprano a Chichén para evitar multitudes. En Suytun, la foto icónica queda increíble.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÍA 4 - VIERNES 12: KAAN LUUM + TULUM + VALLADOLID -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-yellow-600">🏛️🌊 DÍA 4 – VIE 12 | KAAN LUUM + TULUM + VALLADOLID</div>
+            <div class="p-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                    <img src="Kaan Luum.jfif" alt="Kaan Luum" class="img-card h-48">
+                    <img src="Tulum.jfif" alt="Tulum" class="img-card h-48">
+                    <img src="Convento Valladolid.jfif" alt="Convento Valladolid" class="img-card h-48">
+                </div>
+                <p class="text-gray-600 text-sm">Mañana en la laguna Kaan Luum, tarde en las ruinas y playa de Tulum, y cierre con el video mapping en el Convento de San Bernardino en Valladolid.</p>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #ca8a04"><h4>⏰ HORARIOS</h4><p>8:00am Salida a Kaan Luum<br>11:00am-12:00pm Kaan Luum<br>12:30-5:00pm Tulum (ruinas + playa + comida)<br>5:00-7:00pm Traslado a Valladolid<br>8:00pm Show Convento Valladolid<br>11:30pm Llegada Mérida</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Kaan Luum: $150</span><br><span class="cost-badge">Tulum ruinas: $90</span><br><span class="cost-badge">Comida Tulum: $200–400</span><br><span class="cost-badge">Show Valladolid: Gratis</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>📌 TIPS</h4><p>El show en Valladolid es imperdible - llegar 15 min antes. Llevar traje de baño para Kaan Luum.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÍA 5 - SÁBADO 13: XCAMBÓ + AMAITÉ BEACH CLUB -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-cyan-600">🏖️ DÍA 5 – SÁB 13 | XCAMBÓ + AMAITÉ BEACH CLUB</div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <img src="Xcambo.jfif" alt="Xcambó" class="img-card">
+                    <img src="Club de playa.jfif" alt="Amaité" class="img-card">
+                </div>
+                <p class="text-gray-700 italic">Explora la zona arqueológica de Xcambó y relájate con unos cócteles frente al mar en Amaité Beach Club.</p>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #0891b2"><h4>⏰ HORARIOS</h4><p>8:30am Salida<br>9-10:30am Xcambó<br>11am-5:30pm Amaité Beach Club<br>8:30pm Cena grupal</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Xcambó: $105</span><br><span class="cost-badge">🏖️ Amaité Beach Club</span><br><span class="cost-badge">• Básico: $200</span><br><span class="cost-badge">• Con alimentos: $600</span><br><span class="cost-badge">• Barra libre: +$700</span><br><span class="badge-30">💡 Solo pide 30% anticipo</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>🍹 TIPS</h4><p>El paquete con alimentos incluye entrada a instalaciones, comida, bebidas sin alcohol y postre. Reservar con anticipación.</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DÍA 6 - DOMINGO 14: SANTA BÁRBARA + REGRESO -->
+        <div class="day-container" onclick="toggleDay(this)">
+            <div class="day-header bg-blue-800">💦 DÍA 6 – DOM 14 | CENOTES SANTA BÁRBARA + REGRESO</div>
+            <div class="p-6 flex flex-col md:flex-row gap-8 items-center">
+                <img src="Santa barbara.jfif" alt="Santa Bárbara" class="img-card md:w-1/2 h-64">
+                <div class="md:w-1/2">
+                    <h4 class="font-bold text-2xl text-blue-900 mb-3">Cenotes Santa Bárbara</h4>
+                    <p class="text-gray-600 leading-relaxed mb-4">Recorrido por 4 cenotes únicos para despedir el viaje con el agua más pura de la península.</p>
+                    <div class="bg-blue-50 p-4 rounded-lg text-blue-800 text-sm font-medium">📍 Aeropuerto: 3:00-3:30 pm | Vuelo: 5:00 pm</div>
+                </div>
+            </div>
+            <div class="day-details">
+                <div class="info-grid">
+                    <div class="info-card" style="border-left-color: #1e3a8a"><h4>⏰ HORARIOS</h4><p>7:00am Salida a Homún<br>8:00am-12:00pm Santa Bárbara (4 cenotes)<br>12:00-1:00pm Comida rápida<br>2:30pm Salida al aeropuerto<br>3:00-3:30pm Llegada aeropuerto</p></div>
+                    <div class="info-card" style="border-left-color: #22c55e"><h4>💰 COSTOS</h4><p><span class="cost-badge">Santa Bárbara: $250</span><br><span class="cost-badge">Comida rápida: $150–250</span></p></div>
+                    <div class="info-card" style="border-left-color: #f59e0b"><h4>🎁 TIPS</h4><p>Maletas listas desde temprano. Llevar traje de baño y toalla.</p></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SECCIÓN DEL ÁLBUM COLABORATIVO -->
+    <section class="max-w-5xl mx-auto px-4 mb-10">
+        <div class="bg-white p-8 rounded-3xl shadow-lg border border-indigo-50">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">📸 Álbum Colaborativo del Viaje</h2>
+                <p class="text-gray-500">Sube y comparte tus mejores momentos de cada día</p>
+                <div class="w-24 h-1 bg-gradient-to-r from-indigo-500 to-pink-500 mx-auto mt-3 rounded-full"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="albumContainer">
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-indigo-50 to-white" data-day="1" data-fecha="2026-06-09"><div class="flex items-center justify-between mb-3"><span class="text-3xl">🌙</span><span class="text-xs font-semibold text-indigo-500 bg-indigo-100 px-2 py-1 rounded-full">DÍA 1</span></div><h3 class="font-bold text-lg text-gray-800">9 Jun - Uxmal + Izamal</h3><p class="text-xs text-gray-400 mt-1 mb-4">Uxmal · Izamal · Convento iluminado</p><a href="https://drive.google.com/drive/folders/1V3l3H7AL9Hj3Lpj0Q73pF_qvxoTvLs79?usp=drive_link" target="_blank" class="drive-button bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-pink-50 to-white" data-day="2" data-fecha="2026-06-10"><div class="flex items-center justify-between mb-3"><span class="text-3xl">🌊</span><span class="text-xs font-semibold text-pink-500 bg-pink-100 px-2 py-1 rounded-full">DÍA 2</span></div><h3 class="font-bold text-lg text-gray-800">10 Jun - Coloradas</h3><p class="text-xs text-gray-400 mt-1 mb-4">Río Lagartos · Flamencos · Playa Cancunito</p><a href="https://drive.google.com/drive/folders/1P2jcTEwd0Sk_aSM3G7mxdquan-7c2r8J?usp=drive_link" target="_blank" class="drive-button bg-pink-600 hover:bg-pink-700 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-orange-50 to-white" data-day="3" data-fecha="2026-06-11"><div class="flex items-center justify-between mb-3"><span class="text-3xl">🔥</span><span class="text-xs font-semibold text-orange-500 bg-orange-100 px-2 py-1 rounded-full">DÍA 3</span></div><h3 class="font-bold text-lg text-gray-800">11 Jun - Chichén</h3><p class="text-xs text-gray-400 mt-1 mb-4">Ceremonia Maya · Suytun · Paseo Montejo</p><a href="https://drive.google.com/drive/folders/1S1DpBvi2o-5A_F4fWlDIigMSw-6X0uOj?usp=drive_link" target="_blank" class="drive-button bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-yellow-50 to-white" data-day="4" data-fecha="2026-06-12"><div class="flex items-center justify-between mb-3"><span class="text-3xl">🏛️</span><span class="text-xs font-semibold text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full">DÍA 4</span></div><h3 class="font-bold text-lg text-gray-800">12 Jun - Ruta Maya</h3><p class="text-xs text-gray-400 mt-1 mb-4">Kaan Luum · Tulum · Valladolid</p><a href="https://drive.google.com/drive/folders/1-fp4l62n44YHiDYZpaY_sRtnKNwlMhP-?usp=drive_link" target="_blank" class="drive-button bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-cyan-50 to-white" data-day="5" data-fecha="2026-06-13"><div class="flex items-center justify-between mb-3"><span class="text-3xl">🏖️</span><span class="text-xs font-semibold text-cyan-600 bg-cyan-100 px-2 py-1 rounded-full">DÍA 5</span></div><h3 class="font-bold text-lg text-gray-800">13 Jun - Beach Club</h3><p class="text-xs text-gray-400 mt-1 mb-4">Xcambó · Amaité · Cena grupal</p><a href="https://drive.google.com/drive/folders/1xW7LTG_QJAFbN-6Z3ipMjGHqem75ubiK?usp=drive_link" target="_blank" class="drive-button bg-cyan-600 hover:bg-cyan-700 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+                <div class="album-card p-5 border border-gray-100 rounded-2xl bg-gradient-to-br from-blue-50 to-white" data-day="6" data-fecha="2026-06-14"><div class="flex items-center justify-between mb-3"><span class="text-3xl">💦</span><span class="text-xs font-semibold text-blue-600 bg-blue-100 px-2 py-1 rounded-full">DÍA 6</span></div><h3 class="font-bold text-lg text-gray-800">14 Jun - Cenotes</h3><p class="text-xs text-gray-400 mt-1 mb-4">Santa Bárbara · 4 cenotes · Regreso</p><a href="https://drive.google.com/drive/folders/1HorG6J8xhBMqfg1GFadNlO1y7R5cNnVv?usp=drive_link" target="_blank" class="drive-button bg-blue-800 hover:bg-blue-900 text-white font-semibold py-2.5 px-4 rounded-xl">📤 Subir / Ver fotos</a></div>
+            </div>
+            <div class="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 text-center"><p class="text-sm text-gray-500">📌 <span class="font-semibold">Consejo:</span> Cada quien puede subir hasta 10 fotos por día (~10 MB por foto). <br>📸 <span class="font-semibold">Importante:</span> Tus fotos se guardan en el Drive de Betzy y Jorge. <br>✅ <span class="font-semibold">Todos pueden ver las fotos</span>, pero solo Betzy o Jorge pueden eliminarlas.</p></div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN ESTADO DE CUENTA CON GOOGLE SHEETS -->
+    <section class="max-w-5xl mx-auto px-4 mb-10">
+        <div class="bg-white rounded-3xl shadow-lg border border-indigo-50 overflow-hidden">
+            <!-- Pantalla de Login -->
+            <div id="estadoLoginScreen" class="p-8">
+                <div class="text-center mb-6">
+                    <div class="text-5xl mb-3">💰</div>
+                    <h2 class="text-2xl font-bold text-gray-800">Estado de Cuenta</h2>
+                    <p class="text-gray-500 text-sm">Consulta tus pagos y abonos del viaje</p>
+                    <div class="w-20 h-1 bg-gradient-to-r from-indigo-500 to-pink-500 mx-auto mt-3 rounded-full"></div>
+                </div>
+                <div class="max-w-sm mx-auto">
+                    <input type="text" id="estadoUser" placeholder="Usuario" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="estadoPass" placeholder="Contraseña" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="iniciarSesionEstadoCuenta()" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all">Ingresar</button>
+                    <p class="text-center text-xs text-gray-400 mt-4">Solo usuarios autorizados pueden acceder</p>
+                </div>
+            </div>
+
+            <!-- Dashboard (se muestra después del login) -->
+            <div id="estadoDashboard" class="hidden p-8">
+                <div id="estadoContent"></div>
+                <div class="text-center mt-6 text-gray-500 text-sm" id="readonlyNoteEstado">ℹ️ Esta es una vista de solo lectura. Contacta al administrador para actualizar tus abonos.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN FINANZAS PERSONALES (solo admin) -->
+    <section id="finanzasAdminSection" class="max-w-5xl mx-auto px-4 mb-10 hidden">
+        <div class="bg-white rounded-3xl shadow-lg border border-indigo-50 overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
+                <h2 class="text-2xl font-bold text-white">💰 Mis Finanzas Personales</h2>
+                <p class="text-emerald-100 text-sm">Control de gastos del viaje (solo visible para ti)</p>
+            </div>
+            <div class="p-6" id="finanzasContent">
+                <div class="text-center py-8 text-gray-400">Cargando datos...</div>
+            </div>
+            <div class="px-6 pb-6 text-center text-xs text-gray-400">
+                ✏️ Para agregar abonos, edita la hoja "FinanzasAdmin" en tu Google Sheet
+            </div>
+        </div>
+    </section>
+
+    <!-- RESUMEN FINAL -->
+    <section class="max-w-5xl mx-auto px-4 mb-10">
+        <div class="bg-white p-8 rounded-3xl shadow-lg border border-indigo-50">
+            <h3 class="text-2xl font-bold mb-6 text-center text-gray-800">📌 Puntos Clave para el Éxito</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="text-center p-4"><div class="text-4xl mb-2">🐢</div><h5 class="font-bold">Sin Prisas</h5><p class="text-sm text-gray-500">1 actividad fuerte al día para disfrutar cada rincón.</p></div>
+                <div class="text-center p-4"><div class="text-4xl mb-2">🌮</div><h5 class="font-bold">Gastronomía</h5><p class="text-sm text-gray-500">Balance entre tours y tiempo libre para antojos.</p></div>
+                <div class="text-center p-4"><div class="text-4xl mb-2">📸</div><h5 class="font-bold">Recuerdos</h5><p class="text-sm text-gray-500">Lugares icónicos seleccionados para las mejores fotos.</p></div>
+            </div>
+            <div class="mt-6 p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                <p class="text-center text-indigo-800 font-semibold">🚐 <span class="font-bold">Salida y regreso (Rancho Santa Mónica):</span> Salimos a las 5:00 am (favor de llegar antes). El domingo llegamos de regreso aprox a las 11:00 pm. Pueden dejar sus coches ahí.</p>
+            </div>
+            <div class="mt-6 text-center text-sm text-gray-500 italic">💡 Haz clic en cualquier día para ver horarios, costos y tips detallados</div>
+            <div class="mt-8 pt-6 border-t border-gray-200 text-center"><p class="text-xs text-gray-400">💰 Presupuesto estimado por persona: $2,000 – $5,000 MXN <span class="text-gray-300">(dependiendo de gastos extras, propinas, recuerditos y antojos)</span></p></div>
+        </div>
+    </section>
+
+    <script>
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
+        const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRwYMV04Ch_JWWzLmFwQu1l28vUn3Amqng7FK4S5d1V_JBarzvhMdKJepR25-R95slYlA44zNA1gfo-/pub?output=csv";
+        const GOOGLE_SHEETS_FINANZAS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRwYMV04Ch_JWWzLmFwQu1l28vUn3Amqng7FK4S5d1V_JBarzvhMdKJepR25-R95slYlA44zNA1gfo-/pub?gid=1592316201&single=true&output=csv";
+        
+        const ADMIN_USER = "Admin";
+        const ADMIN_PASS = "Admin110716";
+        
+        // PRECIOS
+        const PRECIOS = {
+            avion: 4000,
+            transporteCasa: 700,
+            hospedajeMasTransporteMerida: 3000,
+            soloTransporteMerida: 1500,
+            upgrade: 930,
+            lancha: 300,
+            playaBasicoAdulto: 200,
+            playaBasicoMenor: 100,
+            playaPaqueteAdulto: 600,
+            playaPaqueteMenor: 500,
+            playaBarraLibre: 700
+        };
+        
+        // Porcentaje mínimo requerido ANTES del viaje para conceptos especiales (lancha y playa)
+        const PORCENTAJE_PREVIAJE = 0.30; // 30%
+        
+        let datosGoogleSheet = [];
+        let datosFinanzas = [];
+        let usuarioActualEstado = null;
+        let esAdminEstado = false;
+        
+        async function cargarDatosGoogleSheet() {
+            try {
+                const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+                const csvText = await response.text();
+                const filas = csvText.trim().split('\n');
+                const datos = [];
+                for (let i = 1; i < filas.length; i++) {
+                    const valores = filas[i].split(',').map(v => v.replace(/["']/g, '').trim());
+                    if (valores.length >= 11 && valores[0]) {
+                        const rowData = {
+                            usuario: valores[0],
+                            password: valores[1],
+                            personas: parseInt(valores[2]) || 0,
+                            ninos_sin_hospedaje: parseInt(valores[3]) || 0,
+                            upgrade: valores[4].toUpperCase() === 'TRUE',
+                            upgrade_personas: parseInt(valores[5]) || 0,
+                            avion: valores[6].toUpperCase() === 'TRUE',
+                            solo_transporte: valores[7].toUpperCase() === 'TRUE',
+                            abono_fecha: valores[8] || null,
+                            abono_monto: parseFloat(valores[9]) || 0,
+                            abono_nota: valores[10] || "",
+                            lancha_personas: (valores.length > 11) ? (parseInt(valores[11]) || 0) : 0,
+                            playa_basico_adultos: (valores.length > 12) ? (parseInt(valores[12]) || 0) : 0,
+                            playa_basico_menores: (valores.length > 13) ? (parseInt(valores[13]) || 0) : 0,
+                            playa_paquete_adultos: (valores.length > 14) ? (parseInt(valores[14]) || 0) : 0,
+                            playa_paquete_menores: (valores.length > 15) ? (parseInt(valores[15]) || 0) : 0,
+                            playa_barra_adultos: (valores.length > 16) ? (parseInt(valores[16]) || 0) : 0
+                        };
+                        datos.push(rowData);
+                    }
+                }
+                datosGoogleSheet = datos;
+                return datos;
+            } catch (error) {
+                console.error("Error cargando Google Sheet:", error);
+                return [];
+            }
+        }
+        
+        async function cargarDatosFinanzas() {
+            try {
+                const response = await fetch(GOOGLE_SHEETS_FINANZAS_URL);
+                const csvText = await response.text();
+                const filas = csvText.trim().split('\n');
+                if (filas.length < 2) return [];
+                const datos = [];
+                for (let i = 1; i < filas.length; i++) {
+                    const valores = filas[i].split(',').map(v => v.replace(/["']/g, '').trim());
+                    if (valores.length >= 3 && valores[0]) {
+                        datos.push({
+                            concepto: valores[0],
+                            monto_total: parseFloat(valores[1]) || 0,
+                            abono_fecha: valores[2] || null,
+                            abono_monto: parseFloat(valores[3]) || 0,
+                            abono_nota: valores[4] || "",
+                            pagado: valores[5]?.toUpperCase() === 'TRUE' || false
+                        });
+                    }
+                }
+                datosFinanzas = datos;
+                return datos;
+            } catch (error) {
+                console.error("Error cargando Finanzas:", error);
+                return [];
+            }
+        }
+        
+        function agruparAbonosPorUsuario(datos) {
+            const abonosPorUsuario = {};
+            for (const row of datos) {
+                if (row.abono_fecha && row.abono_monto > 0) {
+                    if (!abonosPorUsuario[row.usuario]) abonosPorUsuario[row.usuario] = [];
+                    abonosPorUsuario[row.usuario].push({
+                        fecha: row.abono_fecha,
+                        monto: row.abono_monto,
+                        nota: row.abono_nota
+                    });
+                }
+            }
+            for (const usuario in abonosPorUsuario) {
+                abonosPorUsuario[usuario].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+            }
+            return abonosPorUsuario;
+        }
+        
+        function getUsuarioData(usuario, datos) {
+            for (const row of datos) {
+                if (row.usuario === usuario && !row.abono_fecha) {
+                    return row;
+                }
+            }
+            return null;
+        }
+        
+        function calcularMontoAvion(personas, tieneAvion) { return tieneAvion ? personas * PRECIOS.avion : 0; }
+        function calcularTransporteCasa(personas, tieneAvion) { return tieneAvion ? personas * PRECIOS.transporteCasa : 0; }
+        
+        function calcularHospedajeMerida(personas, ninosSinHospedaje, soloTransporte) {
+            const adultosConHospedaje = personas - ninosSinHospedaje;
+            if (soloTransporte) {
+                return adultosConHospedaje * PRECIOS.soloTransporteMerida;
+            } else {
+                return adultosConHospedaje * PRECIOS.hospedajeMasTransporteMerida;
+            }
+        }
+        
+        function calcularUpgrade(upgrade_personas) { return upgrade_personas * PRECIOS.upgrade; }
+        
+        function calcularLancha(lanchaPersonas) {
+            return lanchaPersonas * PRECIOS.lancha;
+        }
+        
+        function calcularPlaya(usuarioData) {
+            let total = 0;
+            const desglose = [];
+            
+            if (usuarioData.playa_basico_adultos > 0) {
+                const monto = usuarioData.playa_basico_adultos * PRECIOS.playaBasicoAdulto;
+                total += monto;
+                desglose.push({ concepto: "🏖️ Club playa - Acceso básico", detalle: `${usuarioData.playa_basico_adultos} adultos × $${PRECIOS.playaBasicoAdulto}`, monto: monto });
+            }
+            
+            if (usuarioData.playa_basico_menores > 0) {
+                const monto = usuarioData.playa_basico_menores * PRECIOS.playaBasicoMenor;
+                total += monto;
+                desglose.push({ concepto: "🏖️ Club playa - Acceso básico (menores)", detalle: `${usuarioData.playa_basico_menores} menores × $${PRECIOS.playaBasicoMenor}`, monto: monto });
+            }
+            
+            if (usuarioData.playa_paquete_adultos > 0) {
+                const monto = usuarioData.playa_paquete_adultos * PRECIOS.playaPaqueteAdulto;
+                total += monto;
+                desglose.push({ concepto: "🏖️ Club playa - Paquete comida", detalle: `${usuarioData.playa_paquete_adultos} adultos × $${PRECIOS.playaPaqueteAdulto}`, monto: monto });
+            }
+            
+            if (usuarioData.playa_paquete_menores > 0) {
+                const monto = usuarioData.playa_paquete_menores * PRECIOS.playaPaqueteMenor;
+                total += monto;
+                desglose.push({ concepto: "🏖️ Club playa - Paquete comida (menores)", detalle: `${usuarioData.playa_paquete_menores} menores × $${PRECIOS.playaPaqueteMenor}`, monto: monto });
+            }
+            
+            if (usuarioData.playa_barra_adultos > 0) {
+                const monto = usuarioData.playa_barra_adultos * PRECIOS.playaBarraLibre;
+                total += monto;
+                desglose.push({ concepto: "🏖️ Club playa - Barra libre extra (4 hrs)", detalle: `${usuarioData.playa_barra_adultos} adultos × $${PRECIOS.playaBarraLibre}`, monto: monto });
+            }
+            
+            return { total, desglose };
+        }
+        
+        function calcularTotalAbonado(abonos) { return abonos.reduce((sum, a) => sum + a.monto, 0); }
+        
+        // Calcula los gastos fijos (avión, hospedaje, transporte, upgrade) - estos deben pagarse 100% antes de considerar extras
+        function calcularGastosFijos(usuarioData) {
+            const personas = usuarioData.personas;
+            const ninos = usuarioData.ninos_sin_hospedaje || 0;
+            const upgrade = usuarioData.upgrade;
+            const upgradePersonas = usuarioData.upgrade_personas || (upgrade ? personas : 0);
+            const tieneAvion = usuarioData.avion;
+            const soloTransporte = usuarioData.solo_transporte || false;
+            
+            const montoAvion = calcularMontoAvion(personas, tieneAvion);
+            const montoTransporteCasa = calcularTransporteCasa(personas, tieneAvion);
+            const montoHospedajeMerida = calcularHospedajeMerida(personas, ninos, soloTransporte);
+            const montoUpgrade = (upgradePersonas > 0) ? calcularUpgrade(upgradePersonas) : 0;
+            
+            return {
+                total: montoAvion + montoTransporteCasa + montoHospedajeMerida + montoUpgrade,
+                desglose: {
+                    avion: montoAvion,
+                    transporteCasa: montoTransporteCasa,
+                    hospedaje: montoHospedajeMerida,
+                    upgrade: montoUpgrade
+                }
+            };
+        }
+        
+        // Calcula los gastos extras (lancha y playa)
+        function calcularGastosExtras(usuarioData) {
+            const montoLancha = calcularLancha(usuarioData.lancha_personas);
+            const playaData = calcularPlaya(usuarioData);
+            return {
+                total: montoLancha + playaData.total,
+                lancha: montoLancha,
+                playa: playaData.total,
+                playaDesglose: playaData.desglose
+            };
+        }
+        
+        // NUEVA FUNCIÓN CORREGIDA: Calcula el estado de pagos con prioridad correcta
+        // Primero se deben pagar el 100% de los gastos fijos
+        // Solo después del excedente se aplica la regla del 30% para los extras
+        function calcularEstadoPagos(usuarioData, abonos) {
+            const gastosFijos = calcularGastosFijos(usuarioData);
+            const gastosExtras = calcularGastosExtras(usuarioData);
+            const totalAbonado = calcularTotalAbonado(abonos);
+            
+            const totalGeneral = gastosFijos.total + gastosExtras.total;
+            
+            // Paso 1: ¿Cuánto se ha pagado de los gastos fijos?
+            const pagadoGastosFijos = Math.min(totalAbonado, gastosFijos.total);
+            const saldoGastosFijos = gastosFijos.total - pagadoGastosFijos;
+            const gastosFijosCompletos = saldoGastosFijos <= 0;
+            
+            // Paso 2: Si los gastos fijos están completos, el excedente va a los extras
+            let pagadoExtras = 0;
+            let saldoExtras = gastosExtras.total;
+            let anticipoExtrasCompleto = false;
+            
+            if (gastosFijosCompletos) {
+                pagadoExtras = totalAbonado - gastosFijos.total;
+                saldoExtras = gastosExtras.total - pagadoExtras;
+                
+                // El anticipo del 30% de los extras se considera completo si:
+                // a) Los gastos fijos están al 100%
+                // b) Se ha pagado al menos el 30% del total de los extras
+                const montoMinimoExtras = gastosExtras.total * PORCENTAJE_PREVIAJE;
+                anticipoExtrasCompleto = pagadoExtras >= montoMinimoExtras;
+            }
+            
+            const saldoReal = totalGeneral - totalAbonado;
+            const esSobrePago = saldoReal < 0;
+            
+            // El estado "verde" se muestra si:
+            // 1. Hay sobrepago, O
+            // 2. Los gastos fijos están completos Y el anticipo de extras está completo
+            const mostrarVerde = esSobrePago || (gastosFijosCompletos && anticipoExtrasCompleto);
+            
+            let textoEstado = "";
+            if (esSobrePago) {
+                textoEstado = `💰 SOBREPAGO (A favor)`;
+            } else if (gastosFijosCompletos && anticipoExtrasCompleto) {
+                textoEstado = `✅ GASTOS FIJOS COMPLETOS + ANTICIPO EXTRAS (30%) | Restante: $${saldoReal.toLocaleString()} a pagar durante el viaje`;
+            } else if (gastosFijosCompletos && !anticipoExtrasCompleto) {
+                const faltaAnticipo = (gastosExtras.total * PORCENTAJE_PREVIAJE) - pagadoExtras;
+                textoEstado = `⏳ GASTOS FIJOS COMPLETOS | Falta anticipo extras: $${faltaAnticipo.toLocaleString()} (30% de $${gastosExtras.total.toLocaleString()})`;
+            } else {
+                textoEstado = `⏳ PENDIENTE: Gastos fijos ($${saldoGastosFijos.toLocaleString()})`;
+            }
+            
+            return {
+                saldoReal: saldoReal,
+                esSobrePago: esSobrePago,
+                mostrarVerde: mostrarVerde,
+                textoEstado: textoEstado,
+                gastosFijos: {
+                    total: gastosFijos.total,
+                    pagado: pagadoGastosFijos,
+                    saldo: saldoGastosFijos,
+                    completos: gastosFijosCompletos
+                },
+                gastosExtras: {
+                    total: gastosExtras.total,
+                    pagado: pagadoExtras,
+                    saldo: saldoExtras,
+                    anticipoMinimo: gastosExtras.total * PORCENTAJE_PREVIAJE,
+                    anticipoCompleto: anticipoExtrasCompleto
+                },
+                totalGeneral: totalGeneral,
+                totalAbonado: totalAbonado
+            };
+        }
+        
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return "Fecha no disponible";
+            const fecha = new Date(fechaStr);
+            return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+        
+        async function renderizarFinanzas() {
+            const container = document.getElementById('finanzasContent');
+            if (!container) return;
+            await cargarDatosFinanzas();
+            const conceptosMap = new Map();
+            for (const row of datosFinanzas) {
+                if (!row.abono_fecha) {
+                    conceptosMap.set(row.concepto, {
+                        monto_total: row.monto_total,
+                        abonos: [],
+                        pagado: row.pagado
+                    });
+                }
+            }
+            for (const row of datosFinanzas) {
+                if (row.abono_fecha && row.abono_monto > 0 && conceptosMap.has(row.concepto)) {
+                    conceptosMap.get(row.concepto).abonos.push({
+                        fecha: row.abono_fecha,
+                        monto: row.abono_monto,
+                        nota: row.abono_nota
+                    });
+                }
+            }
+            for (const [concepto, data] of conceptosMap) {
+                data.abonos.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+                data.total_abonado = data.abonos.reduce((sum, a) => sum + a.monto, 0);
+                data.saldo = data.monto_total - data.total_abonado;
+                data.porcentaje = data.monto_total > 0 ? (data.total_abonado / data.monto_total) * 100 : 0;
+            }
+            const totalGeneral = Array.from(conceptosMap.values()).reduce((sum, c) => sum + c.monto_total, 0);
+            const totalAbonadoGeneral = Array.from(conceptosMap.values()).reduce((sum, c) => sum + c.total_abonado, 0);
+            const saldoGeneral = totalGeneral - totalAbonadoGeneral;
+            let html = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"><div class="total-card"><p class="text-sm opacity-90">💰 PRESUPUESTO TOTAL</p><p class="text-2xl font-bold">$${totalGeneral.toLocaleString()}</p></div><div class="total-card"><p class="text-sm opacity-90">✅ TOTAL ABONADO</p><p class="text-2xl font-bold">$${totalAbonadoGeneral.toLocaleString()}</p></div><div class="${saldoGeneral === 0 ? 'total-card' : 'pending-card'}"><p class="text-sm opacity-90">⏳ SALDO PENDIENTE</p><p class="text-2xl font-bold">$${saldoGeneral.toLocaleString()}</p></div></div><div class="space-y-4">`;
+            for (const [concepto, data] of conceptosMap) {
+                const barWidth = data.porcentaje;
+                html += `<div class="bg-gray-50 rounded-xl p-4 border border-gray-100"><div class="flex justify-between items-center mb-2"><h3 class="font-bold text-lg text-gray-800">${concepto}</h3><span class="text-sm font-semibold ${data.saldo === 0 ? 'text-green-600' : 'text-orange-600'}">$${data.saldo.toLocaleString()} pendiente</span></div><div class="flex justify-between text-sm text-gray-500 mb-1"><span>Total: $${data.monto_total.toLocaleString()}</span><span>Abonado: $${data.total_abonado.toLocaleString()}</span></div><div class="w-full bg-gray-200 rounded-full h-2.5 mb-3"><div class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full" style="width: ${barWidth}%"></div></div>${data.abonos.length > 0 ? `<div class="mt-2"><p class="text-xs font-semibold text-gray-500 mb-1">📅 Historial de abonos:</p><div class="flex flex-wrap gap-2">${data.abonos.map(a => `<span class="bg-white px-2 py-1 rounded-lg text-xs shadow-sm"><span class="font-semibold">${formatearFecha(a.fecha)}</span>: $${a.monto.toLocaleString()} ${a.nota ? `(${a.nota})` : ''}</span>`).join('')}</div></div>` : '<p class="text-xs text-gray-400 mt-2">Aún no hay abonos registrados</p>'}</div>`;
+            }
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+        
+        async function renderizarEstadoCuenta() {
+            const container = document.getElementById('estadoContent');
+            if (!container) return;
+            await cargarDatosGoogleSheet();
+            const abonosPorUsuario = agruparAbonosPorUsuario(datosGoogleSheet);
+            
+            if (esAdminEstado) {
+                const finanzasSection = document.getElementById('finanzasAdminSection');
+                if (finanzasSection) finanzasSection.classList.remove('hidden');
+                await renderizarFinanzas();
+                
+                const usuariosUnicos = [...new Set(datosGoogleSheet.filter(r => !r.abono_fecha).map(r => r.usuario))];
+                let html = `<h2 class="text-2xl font-bold text-gray-800 mb-6">📋 Estado de Cuenta - Todos los Usuarios</h2>
+                <div class="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200 text-sm">
+                    <span class="font-semibold">🔵 Prioridad de pagos:</span> 
+                    <strong>Primero</strong> se deben pagar los gastos fijos (avión, hospedaje, transporte, upgrade) al <strong>100%</strong>.
+                    Una vez cubiertos, el excedente se aplica a la lancha y club de playa, donde solo se requiere el <strong>30% de anticipo</strong>.
+                    El estado aparecerá en <span class="text-green-600 font-semibold">VERDE</span> cuando los gastos fijos estén completos Y se haya pagado al menos el 30% de los extras.
+                </div>
+                <div class="space-y-8">`;
+                
+                for (const usuario of usuariosUnicos) {
+                    const usuarioData = getUsuarioData(usuario, datosGoogleSheet);
+                    if (!usuarioData) continue;
+                    const abonos = abonosPorUsuario[usuario] || [];
+                    const estadoPagos = calcularEstadoPagos(usuarioData, abonos);
+                    const gastosFijos = calcularGastosFijos(usuarioData);
+                    const gastosExtras = calcularGastosExtras(usuarioData);
+                    const personas = usuarioData.personas;
+                    const ninos = usuarioData.ninos_sin_hospedaje || 0;
+                    const upgrade = usuarioData.upgrade;
+                    const upgradePersonas = usuarioData.upgrade_personas || (upgrade ? personas : 0);
+                    const tieneAvion = usuarioData.avion;
+                    const soloTransporte = usuarioData.solo_transporte || false;
+                    
+                    const montoAvion = calcularMontoAvion(personas, tieneAvion);
+                    const montoTransporteCasa = calcularTransporteCasa(personas, tieneAvion);
+                    const montoHospedajeMerida = calcularHospedajeMerida(personas, ninos, soloTransporte);
+                    const montoUpgrade = (upgradePersonas > 0) ? calcularUpgrade(upgradePersonas) : 0;
+                    const montoLancha = calcularLancha(usuarioData.lancha_personas);
+                    const playaData = calcularPlaya(usuarioData);
+                    const montoPlaya = playaData.total;
+                    
+                    const ninosTexto = ninos > 0 ? `, ${ninos} ${ninos === 1 ? 'niño sin hospedaje' : 'niños sin hospedaje'}` : '';
+                    const tipoHospedajeTexto = soloTransporte ? `(Solo transporte en Mérida - $${PRECIOS.soloTransporteMerida.toLocaleString()} c/u)` : `(Hospedaje + Transporte Mérida - $${PRECIOS.hospedajeMasTransporteMerida.toLocaleString()} c/u)`;
+                    const etiquetaSoloTransporte = soloTransporte ? ' 🚌 Solo transporte' : '';
+                    
+                    const cardClass = estadoPagos.mostrarVerde ? 'total-card' : 'pending-card';
+                    
+                    html += `<div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"><div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4"><h3 class="text-xl font-bold text-white">${usuario}${etiquetaSoloTransporte}</h3><p class="text-indigo-100 text-sm">${personas} ${personas === 1 ? 'persona' : 'personas'} (${personas - ninos} adultos${ninosTexto})</p></div><div class="p-6"><div class="tabla-estado"><table class="w-full"><thead><tr><th class="text-left">Concepto</th><th class="text-right">Cálculo</th><th class="text-right">Monto</th></tr></thead><tbody>`;
+                    
+                    // GASTOS FIJOS (sección destacada)
+                    html += `<tr class="bg-purple-50"><td colspan="3" class="font-bold text-purple-800">🔒 GASTOS FIJOS (Pago prioritario - 100% requerido)</td></tr>`;
+                    
+                    if (tieneAvion) {
+                        html += `<tr><td class="font-semibold pl-4">✈️ Avión</td><td class="text-right text-gray-500">${personas} × $${PRECIOS.avion.toLocaleString()}</td><td class="text-right font-semibold">$${montoAvion.toLocaleString()}</td></tr>`;
+                        html += `<tr><td class="font-semibold pl-4">🚗 Transporte casa-aeropuerto</td><td class="text-right text-gray-500">${personas} × $${PRECIOS.transporteCasa.toLocaleString()}</td><td class="text-right font-semibold">$${montoTransporteCasa.toLocaleString()}</td></tr>`;
+                    } else {
+                        html += `<tr><td class="font-semibold text-gray-400 pl-4">✈️ Avión</td><td class="text-right text-gray-400">No aplica (sin vuelo)</td><td class="text-right text-gray-400">$0</td></tr>`;
+                        html += `<tr><td class="font-semibold text-gray-400 pl-4">🚗 Transporte casa-aeropuerto</td><td class="text-right text-gray-400">No aplica (sin avión)</td><td class="text-right text-gray-400">$0</td></tr>`;
+                    }
+                    
+                    html += `<tr><td class="font-semibold pl-4">🏠 Hospedaje en Mérida ${soloTransporte ? '(solo transporte)' : '(hospedaje + transporte)'}</td><td class="text-right text-gray-500">${personas - ninos} × ${soloTransporte ? `$${PRECIOS.soloTransporteMerida.toLocaleString()}` : `$${PRECIOS.hospedajeMasTransporteMerida.toLocaleString()}`}<br><span class="text-xs">${tipoHospedajeTexto}</span></td><td class="text-right font-semibold">$${montoHospedajeMerida.toLocaleString()}</td></tr>`;
+                    
+                    if (upgradePersonas > 0) {
+                        html += `<tr><td class="font-semibold pl-4">⭐ Upgrade hospedaje</td><td class="text-right text-gray-500">${upgradePersonas} × $${PRECIOS.upgrade.toLocaleString()}</td><td class="text-right font-semibold">$${montoUpgrade.toLocaleString()}</td></tr>`;
+                    }
+                    
+                    // Subtotales gastos fijos
+                    const pagadoFijos = estadoPagos.gastosFijos.pagado;
+                    const saldoFijos = estadoPagos.gastosFijos.saldo;
+                    html += `<tr class="bg-gray-100"><td class="font-bold pl-4">📌 SUBTOTAL GASTOS FIJOS</td><td class="text-right text-gray-600">Pagado: $${pagadoFijos.toLocaleString()}</td><td class="text-right font-bold ${saldoFijos === 0 ? 'text-green-600' : 'text-orange-600'}">$${gastosFijos.total.toLocaleString()}</td></tr>`;
+                    
+                    // GASTOS EXTRAS
+                    if (gastosExtras.total > 0) {
+                        html += `<tr class="bg-cyan-50"><td colspan="3" class="font-bold text-cyan-800">🎯 GASTOS EXTRAS (30% anticipo requerido después de gastos fijos)</td></tr>`;
+                        
+                        if (usuarioData.lancha_personas > 0) {
+                            html += `<tr><td class="font-semibold pl-4">🚤 Lancha Río Lagartos</td><td class="text-right text-gray-500">${usuarioData.lancha_personas} personas × $${PRECIOS.lancha.toLocaleString()}</td><td class="text-right font-semibold">$${montoLancha.toLocaleString()}</td></tr>`;
+                        }
+                        
+                        if (playaData.desglose.length > 0) {
+                            for (const item of playaData.desglose) {
+                                html += `<tr><td class="text-sm text-gray-600 pl-6">↳ ${item.concepto}</td><td class="text-right text-gray-500 text-sm">${item.detalle}</td><td class="text-right text-gray-600 text-sm">$${item.monto.toLocaleString()}</td></tr>`;
+                            }
+                        }
+                        
+                        const pagadoExtras = estadoPagos.gastosExtras.pagado;
+                        const anticipoMinimo = estadoPagos.gastosExtras.anticipoMinimo;
+                        html += `<tr class="bg-gray-100"><td class="font-bold pl-4">📌 SUBTOTAL GASTOS EXTRAS</td><td class="text-right text-gray-600">30% anticipo: $${anticipoMinimo.toLocaleString()}<br>Pagado de extras: $${pagadoExtras.toLocaleString()}</td><td class="text-right font-bold">$${gastosExtras.total.toLocaleString()}</td></tr>`;
+                    }
+                    
+                    html += `</tbody></table></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"><div class="total-card"><p class="text-sm opacity-90">💰 TOTAL DEL VIAJE</p><p class="text-3xl font-bold">$${estadoPagos.totalGeneral.toLocaleString()}</p><p class="text-xs opacity-80">MXN</p></div><div class="${cardClass}"><p class="text-sm opacity-90">${estadoPagos.textoEstado}</p><p class="text-3xl font-bold">${estadoPagos.esSobrePago ? `+$${Math.abs(estadoPagos.saldoReal).toLocaleString()}` : `$${estadoPagos.saldoReal.toLocaleString()}`}</p><p class="text-xs opacity-80">Abonado: $${estadoPagos.totalAbonado.toLocaleString()}</p></div></div>`;
+                    
+                    // Resumen de estado de pagos
+                    html += `<div class="mt-4 p-3 ${estadoPagos.gastosFijos.completos ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} rounded-xl border text-sm">
+                        <div class="flex flex-wrap gap-4 justify-between">
+                            <div><span class="font-semibold">🔒 Gastos fijos:</span> 
+                                <span class="${estadoPagos.gastosFijos.completos ? 'text-green-600' : 'text-orange-600'}">
+                                    ${estadoPagos.gastosFijos.completos ? '✅ Completos 100%' : `❌ Falta $${estadoPagos.gastosFijos.saldo.toLocaleString()}`}
+                                </span>
+                            </div>
+                            <div><span class="font-semibold">🎯 Anticipo extras (30%):</span> 
+                                <span class="${estadoPagos.gastosExtras.anticipoCompleto ? 'text-green-600' : 'text-orange-600'}">
+                                    ${estadoPagos.gastosExtras.anticipoCompleto ? '✅ Completado' : estadoPagos.gastosFijos.completos ? `❌ Falta $${(estadoPagos.gastosExtras.anticipoMinimo - estadoPagos.gastosExtras.pagado).toLocaleString()}` : '(Primero completar gastos fijos)'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>`;
+                    
+                    html += `<div class="mt-6"><h4 class="font-bold text-gray-700 mb-3">📅 Historial de Abonos</h4>${abonos.length > 0 ? abonos.map(a => `<div class="abono-item flex justify-between"><div><span class="font-semibold">${formatearFecha(a.fecha)}</span>${a.nota ? `<span class="text-xs text-gray-500 ml-2">${a.nota}</span>` : ''}</div><span class="font-bold text-green-600">$${a.monto.toLocaleString()}</span></div>`).join('') : '<div class="bg-gray-50 rounded-xl p-4 text-center text-gray-400 text-sm">Aún no hay abonos registrados</div>'}</div></div></div>`;
+                }
+                html += `</div><div class="mt-6 text-center text-sm text-amber-600">✏️ Modo administrador: Para agregar abonos, edita directamente el Google Sheet.</div>`;
+                container.innerHTML = html;
+                
+            } else if (usuarioActualEstado) {
+                const finanzasSection = document.getElementById('finanzasAdminSection');
+                if (finanzasSection) finanzasSection.classList.add('hidden');
+                const usuarioData = getUsuarioData(usuarioActualEstado, datosGoogleSheet);
+                if (!usuarioData) { 
+                    container.innerHTML = `<div class="text-center text-red-500">No se encontraron datos para este usuario.</div>`; 
+                    return; 
+                }
+                const abonos = abonosPorUsuario[usuarioActualEstado] || [];
+                const estadoPagos = calcularEstadoPagos(usuarioData, abonos);
+                const gastosFijos = calcularGastosFijos(usuarioData);
+                const gastosExtras = calcularGastosExtras(usuarioData);
+                const personas = usuarioData.personas;
+                const ninos = usuarioData.ninos_sin_hospedaje || 0;
+                const upgrade = usuarioData.upgrade;
+                const upgradePersonas = usuarioData.upgrade_personas || (upgrade ? personas : 0);
+                const tieneAvion = usuarioData.avion;
+                const soloTransporte = usuarioData.solo_transporte || false;
+                
+                const montoAvion = calcularMontoAvion(personas, tieneAvion);
+                const montoTransporteCasa = calcularTransporteCasa(personas, tieneAvion);
+                const montoHospedajeMerida = calcularHospedajeMerida(personas, ninos, soloTransporte);
+                const montoUpgrade = (upgradePersonas > 0) ? calcularUpgrade(upgradePersonas) : 0;
+                const montoLancha = calcularLancha(usuarioData.lancha_personas);
+                const playaData = calcularPlaya(usuarioData);
+                const montoPlaya = playaData.total;
+                
+                const ninosTexto = ninos > 0 ? `, ${ninos} ${ninos === 1 ? 'niño sin hospedaje' : 'niños sin hospedaje'}` : '';
+                const tipoHospedajeTexto = soloTransporte ? `(Solo transporte en Mérida - $${PRECIOS.soloTransporteMerida.toLocaleString()} c/u)` : `(Hospedaje + Transporte Mérida - $${PRECIOS.hospedajeMasTransporteMerida.toLocaleString()} c/u)`;
+                const etiquetaSoloTransporte = soloTransporte ? ' 🚌 Solo transporte' : '';
+                
+                const cardClass = estadoPagos.mostrarVerde ? 'total-card' : 'pending-card';
+                
+                let html = `<h2 class="text-2xl font-bold text-gray-800 mb-6">📋 Tu Estado de Cuenta</h2>
+                <div class="mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200 text-sm">
+                    <span class="font-semibold">🔵 Prioridad de pagos:</span> 
+                    <strong>Primero</strong> se deben pagar los gastos fijos (avión, hospedaje, transporte, upgrade) al <strong>100%</strong>.
+                    Una vez cubiertos, el excedente se aplica a la lancha y club de playa, donde solo se requiere el <strong>30% de anticipo</strong>.
+                    Tu estado aparecerá en <span class="text-green-600 font-semibold">VERDE</span> cuando los gastos fijos estén completos Y se haya pagado al menos el 30% de los extras.
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100"><div class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4"><h3 class="text-xl font-bold text-white">${usuarioActualEstado}${etiquetaSoloTransporte}</h3><p class="text-indigo-100 text-sm">${personas} ${personas === 1 ? 'persona' : 'personas'} (${personas - ninos} adultos${ninosTexto})</p></div><div class="p-6"><div class="tabla-estado"><table class="w-full"><thead><tr><th class="text-left">Concepto</th><th class="text-right">Cálculo</th><th class="text-right">Monto</th></tr></thead><tbody>`;
+                
+                // GASTOS FIJOS
+                html += `<tr class="bg-purple-50"><td colspan="3" class="font-bold text-purple-800">🔒 GASTOS FIJOS (Pago prioritario - 100% requerido)</td></tr>`;
+                
+                if (tieneAvion) {
+                    html += `<tr><td class="font-semibold pl-4">✈️ Avión</td><td class="text-right text-gray-500">${personas} × $${PRECIOS.avion.toLocaleString()}</td><td class="text-right font-semibold">$${montoAvion.toLocaleString()}</td></tr>`;
+                    html += `<tr><td class="font-semibold pl-4">🚗 Transporte casa-aeropuerto</td><td class="text-right text-gray-500">${personas} × $${PRECIOS.transporteCasa.toLocaleString()}</td><td class="text-right font-semibold">$${montoTransporteCasa.toLocaleString()}</td></tr>`;
+                } else {
+                    html += `<tr><td class="font-semibold text-gray-400 pl-4">✈️ Avión</td><td class="text-right text-gray-400">No aplica (sin vuelo)</td><td class="text-right text-gray-400">$0</td></tr>`;
+                    html += `<tr><td class="font-semibold text-gray-400 pl-4">🚗 Transporte casa-aeropuerto</td><td class="text-right text-gray-400">No aplica (sin avión)</td><td class="text-right text-gray-400">$0</td></tr>`;
+                }
+                
+                html += `<tr><td class="font-semibold pl-4">🏠 Hospedaje en Mérida ${soloTransporte ? '(solo transporte)' : '(hospedaje + transporte)'}</td><td class="text-right text-gray-500">${personas - ninos} × ${soloTransporte ? `$${PRECIOS.soloTransporteMerida.toLocaleString()}` : `$${PRECIOS.hospedajeMasTransporteMerida.toLocaleString()}`}<br><span class="text-xs">${tipoHospedajeTexto}</span></td><td class="text-right font-semibold">$${montoHospedajeMerida.toLocaleString()}</td></tr>`;
+                
+                if (upgradePersonas > 0) {
+                    html += `<tr><td class="font-semibold pl-4">⭐ Upgrade hospedaje</td><td class="text-right text-gray-500">${upgradePersonas} × $${PRECIOS.upgrade.toLocaleString()}</td><td class="text-right font-semibold">$${montoUpgrade.toLocaleString()}</td></tr>`;
+                }
+                
+                const pagadoFijos = estadoPagos.gastosFijos.pagado;
+                html += `<tr class="bg-gray-100"><td class="font-bold pl-4">📌 SUBTOTAL GASTOS FIJOS</td><td class="text-right text-gray-600">Pagado: $${pagadoFijos.toLocaleString()}</td><td class="text-right font-bold ${estadoPagos.gastosFijos.saldo === 0 ? 'text-green-600' : 'text-orange-600'}">$${gastosFijos.total.toLocaleString()}</td></tr>`;
+                
+                // GASTOS EXTRAS
+                if (gastosExtras.total > 0) {
+                    html += `<tr class="bg-cyan-50"><td colspan="3" class="font-bold text-cyan-800">🎯 GASTOS EXTRAS (30% anticipo requerido después de gastos fijos)</td></tr>`;
+                    
+                    if (usuarioData.lancha_personas > 0) {
+                        html += `<tr><td class="font-semibold pl-4">🚤 Lancha Río Lagartos</td><td class="text-right text-gray-500">${usuarioData.lancha_personas} personas × $${PRECIOS.lancha.toLocaleString()}</td><td class="text-right font-semibold">$${montoLancha.toLocaleString()}</td></tr>`;
+                    }
+                    
+                    if (playaData.desglose.length > 0) {
+                        for (const item of playaData.desglose) {
+                            html += `<tr><td class="text-sm text-gray-600 pl-6">↳ ${item.concepto}</td><td class="text-right text-gray-500 text-sm">${item.detalle}</td><td class="text-right text-gray-600 text-sm">$${item.monto.toLocaleString()}</td></tr>`;
+                        }
+                    }
+                    
+                    const pagadoExtras = estadoPagos.gastosExtras.pagado;
+                    const anticipoMinimo = estadoPagos.gastosExtras.anticipoMinimo;
+                    html += `<tr class="bg-gray-100"><td class="font-bold pl-4">📌 SUBTOTAL GASTOS EXTRAS</td><td class="text-right text-gray-600">30% anticipo: $${anticipoMinimo.toLocaleString()}<br>Pagado de extras: $${pagadoExtras.toLocaleString()}</td><td class="text-right font-bold">$${gastosExtras.total.toLocaleString()}</td></tr>`;
+                }
+                
+                html += `</tbody></table></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"><div class="total-card"><p class="text-sm opacity-90">💰 TOTAL DEL VIAJE</p><p class="text-3xl font-bold">$${estadoPagos.totalGeneral.toLocaleString()}</p><p class="text-xs opacity-80">MXN</p></div><div class="${cardClass}"><p class="text-sm opacity-90">${estadoPagos.textoEstado}</p><p class="text-3xl font-bold">${estadoPagos.esSobrePago ? `+$${Math.abs(estadoPagos.saldoReal).toLocaleString()}` : `$${estadoPagos.saldoReal.toLocaleString()}`}</p><p class="text-xs opacity-80">Abonado: $${estadoPagos.totalAbonado.toLocaleString()}</p></div></div>`;
+                
+                html += `<div class="mt-4 p-3 ${estadoPagos.gastosFijos.completos ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'} rounded-xl border text-sm">
+                    <div class="flex flex-wrap gap-4 justify-between">
+                        <div><span class="font-semibold">🔒 Gastos fijos:</span> 
+                            <span class="${estadoPagos.gastosFijos.completos ? 'text-green-600' : 'text-orange-600'}">
+                                ${estadoPagos.gastosFijos.completos ? '✅ Completos 100%' : `❌ Falta $${estadoPagos.gastosFijos.saldo.toLocaleString()}`}
+                            </span>
+                        </div>
+                        <div><span class="font-semibold">🎯 Anticipo extras (30%):</span> 
+                            <span class="${estadoPagos.gastosExtras.anticipoCompleto ? 'text-green-600' : 'text-orange-600'}">
+                                ${estadoPagos.gastosExtras.anticipoCompleto ? '✅ Completado' : estadoPagos.gastosFijos.completos ? `❌ Falta $${(estadoPagos.gastosExtras.anticipoMinimo - estadoPagos.gastosExtras.pagado).toLocaleString()}` : '(Primero completar gastos fijos)'}
+                            </span>
+                        </div>
+                    </div>
+                </div>`;
+                
+                html += `<div class="mt-6"><h4 class="font-bold text-gray-700 mb-3">📅 Historial de Abonos</h4>${abonos.length > 0 ? abonos.map(a => `<div class="abono-item flex justify-between"><div><span class="font-semibold">${formatearFecha(a.fecha)}</span>${a.nota ? `<span class="text-xs text-gray-500 ml-2">${a.nota}</span>` : ''}</div><span class="font-bold text-green-600">$${a.monto.toLocaleString()}</span></div>`).join('') : '<div class="bg-gray-50 rounded-xl p-4 text-center text-gray-400 text-sm">Aún no hay abonos registrados</div>'}</div></div></div>`;
+                container.innerHTML = html;
+            }
+        }
+        
+        async function iniciarSesionEstadoCuenta() {
+            const user = document.getElementById('estadoUser').value.trim();
+            const pass = document.getElementById('estadoPass').value;
+            
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                esAdminEstado = true;
+                usuarioActualEstado = ADMIN_USER;
+                await cargarDatosGoogleSheet();
+                document.getElementById('estadoLoginScreen').classList.add('hidden');
+                document.getElementById('estadoDashboard').classList.remove('hidden');
+                document.querySelector('.logout-btn').classList.remove('hidden');
+                renderizarEstadoCuenta();
+                return;
+            }
+            
+            await cargarDatosGoogleSheet();
+            const usuarioData = datosGoogleSheet.find(r => r.usuario === user && r.password === pass && !r.abono_fecha);
+            if (usuarioData) {
+                esAdminEstado = false;
+                usuarioActualEstado = user;
+                document.getElementById('estadoLoginScreen').classList.add('hidden');
+                document.getElementById('estadoDashboard').classList.remove('hidden');
+                document.querySelector('.logout-btn').classList.remove('hidden');
+                document.getElementById('readonlyNoteEstado').innerHTML = "ℹ️ Esta es una vista de solo lectura. Contacta al administrador para actualizar tus abonos.";
+                renderizarEstadoCuenta();
+                return;
+            }
+            alert("❌ Usuario o contraseña incorrectos");
+        }
+        
+        function cerrarSesionEstadoCuenta() {
+            esAdminEstado = false;
+            usuarioActualEstado = null;
+            document.getElementById('estadoLoginScreen').classList.remove('hidden');
+            document.getElementById('estadoDashboard').classList.add('hidden');
+            document.querySelector('.logout-btn').classList.add('hidden');
+            document.getElementById('estadoUser').value = '';
+            document.getElementById('estadoPass').value = '';
+            const finanzasSection = document.getElementById('finanzasAdminSection');
+            if (finanzasSection) finanzasSection.classList.add('hidden');
+        }
+        
+        const fechasDesbloqueo = {1:"2026-06-09",2:"2026-06-10",3:"2026-06-11",4:"2026-06-12",5:"2026-06-13",6:"2026-06-14"};
+        function getTodayDate() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+        function isPreviewMode() { return new URLSearchParams(window.location.search).get('preview')?.toLowerCase() === 'true'; }
+        function formatearFechaBloqueo(f) { const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']; const [y,m,d]=f.split('-'); return `${parseInt(d)} de ${meses[parseInt(m)-1]}`; }
+        function aplicarBloqueoAlbum() {
+            const preview=isPreviewMode(), hoy=getTodayDate();
+            const badge=document.querySelector('.preview-badge');
+            if(preview&&!badge){const b=document.createElement('div');b.className='preview-badge';b.innerHTML='👁️ MODO PREVIEW · Todos los días desbloqueados';document.body.appendChild(b);}
+            else if(!preview&&badge)badge.remove();
+            document.querySelectorAll('.album-card').forEach(card=>{
+                const day=card.getAttribute('data-day'), fechaLimite=fechasDesbloqueo[day];
+                let unlocked=preview||(fechaLimite&&hoy>=fechaLimite);
+                if(!unlocked){
+                    if(!card.classList.contains('locked')){
+                        card.classList.add('locked');
+                        if(!card.querySelector('.lock-overlay')){
+                            const overlay=document.createElement('div');overlay.className='lock-overlay';
+                            overlay.innerHTML=`🔒 Disponible a partir del ${formatearFechaBloqueo(fechaLimite)}`;
+                            card.style.position='relative';card.appendChild(overlay);
+                        }
+                    }
+                }else if(card.classList.contains('locked')){
+                    card.classList.remove('locked');
+                    const ov=card.querySelector('.lock-overlay');if(ov)ov.remove();
+                }
+            });
+        }
+        
+        function toggleDay(element){element.classList.toggle('active');}
+        
+        aplicarBloqueoAlbum();
+        document.getElementById('estadoPass')?.addEventListener('keypress',(e)=>{if(e.key==='Enter')iniciarSesionEstadoCuenta();});
+        document.getElementById('estadoUser')?.addEventListener('keypress',(e)=>{if(e.key==='Enter')iniciarSesionEstadoCuenta();});
+    </script>
+</body>
+</html>
